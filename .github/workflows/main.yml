@@ -28,7 +28,7 @@ jobs:
 
         # Run sonar-scanner
       - name: SonarCloud Scan
-        run: sonar-scanner -Dsonar.host.url=${{ secrets.SONAR_URL }} -Dsonar.login=${{ secrets.SONAR_TOKEN }} -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} -Dsonar.sources=src/ -Dsonar.junit.reportsPath=target/surefire-reports/ -Dsonar.jacoco.reportsPath=target/jacoco.exec -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml -Dsonar.java.binaries=target
+        run: sonar-scanner -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
       # Check the Quality Gate status.
       - name: SonarQube Quality Gate check
