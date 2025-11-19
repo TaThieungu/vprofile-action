@@ -1,60 +1,89 @@
-name: vproflie actions
-on: workflow_dispatch
+name: vprofile actions
+
+on:
+  workflow_dispatch:
+
 env:
   AWS_REGION: ap-southeast-2
   ECR_REPOSITORY: gitops
   EKS_CLUSTER: gitops2
+
 jobs:
   Testing:
     runs-on: ubuntu-latest
     steps:
       - name: Code checkout
         uses: actions/checkout@v4
-      - name: Maven test
-        run: mvn test
-      - name: Checkstyle
-        run: mvn checkstyle:checkstyle
 
-      #Setup java 11
+      # Setup java 11
       - name: Setup Java 11
         uses: actions/setup-java@v3
         with:
           distribution: "temurin"
           java-version: "11"
 
-      #Setup sonar-scanner
+      - name: Maven test
+        run: mvn test
+
+      - name: Checkstyle
+        run: mvn checkstyle:checkstyle
+
+      # Setup sonar-scanner
       - name: Setup Sonar Scanner
         uses: warchant/setup-sonar-scanner@v7
 
       - name: SonarQube Scan
         run: sonar-scanner -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
-      # Check the Quality Gate status.
       - name: SonarQube Quality Gate check
         id: sonarqube-quality-gate-check
         uses: sonarsource/sonarqube-quality-gate-action@master
-        # Force to fail step after specific time.
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_URL }} #OPTIONAL
+          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
 
-  BUILD_AND_PUBLISH:
+  BUILD_AND_PUSHLISH:
     needs: Testing
     runs-on: ubuntu-latest
     steps:
       - name: Code checkout
         uses: actions/checkout@v4
 
-      - name: Build & Upload image to ECR
-        uses: appleboy/docker-ecr-action@master
+      # 1. Cấu hình AWS credentials từ secrets
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          registry: ${{ secrets.REGISTRY }}
-          repo: ${{ env.ECR_REPOSITORY }}
-          region: ${{ env.AWS_REGION }}
-          tags: latest,${{ github.run_number }}
-          daemon_off: false
-          dockerfile: ./Dockerfile
-          context: ./
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 2. Login vào ECR (CHÍNH CHỦ AWS)
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 3. Build & Push Docker image lên ECR
+      - name: Build & Push Docker image
+        # dùng env để code shell gọn hơn
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.run_number }}
+        run: |
+          echo "Registry  : $REGISTRY"
+          echo "Repo      : $REPOSITORY"
+          echo "Image tag : $IMAGE_TAG"
+
+          IMAGE="$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+          LATEST="$REGISTRY/$REPOSITORY:latest"
+
+          echo "Building image $IMAGE"
+          docker build -t "$IMAGE" -f ./Dockerfile .
+
+          echo "Pushing image $IMAGE"
+          docker push "$IMAGE"
+
+          echo "Tagging and pushing $LATEST"
+          docker tag "$IMAGE" "$LATEST"
+          docker push "$LATEST"
