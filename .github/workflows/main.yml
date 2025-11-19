@@ -49,7 +49,7 @@ jobs:
       - name: Debug secrets
         run: |
           echo "ACCESS_KEY => ${AWS_ACCESS_KEY_ID}"
-          echo "SECRET_KEY length => ${#AWS_SECRET_ACCESS_KEY}"
+          echo "SECRET_KEY length => ${AWS_SECRET_ACCESS_KEY}"
           echo "REGISTRY => ${REGISTRY}"
 
       # 1. Cấu hình AWS credentials từ secrets
