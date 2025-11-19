@@ -42,7 +42,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
-
+  #
   BUILD_AND_PUSHLISH:
     needs: Testing
     runs-on: ubuntu-latest
