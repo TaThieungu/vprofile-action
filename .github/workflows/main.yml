@@ -46,22 +46,25 @@ jobs:
       - name: Code checkout
         uses: actions/checkout@v4
 
-      - name: Debug secrets
-        run: |
-          echo "ACCESS_KEY => ${AWS_ACCESS_KEY_ID}"
-          echo "SECRET_KEY length => ${#AWS_SECRET_ACCESS_KEY}"
-          echo "REGISTRY => ${REGISTRY}"
-
-      - name: Build & Upload image to ECR
-        uses: appleboy/docker-ecr-action@master
+      # Cấu hình AWS credentials từ secrets
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          registry: ${{ secrets.REGISTRY }}
-          repo: ${{ env.ECR_REPOSITORY }}
-          region: ${{ env.AWS_REGION }}
-          tags: latest,${{ github.run_number }}
-          daemon_off: false
-          dockerfile: ./Dockerfile
-          context: ./
-#
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Login vào ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Build & push image lên ECR
+      - name: Build & Push Docker image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          IMAGE=${REGISTRY}/${ECR_REPOSITORY}:${GITHUB_RUN_NUMBER}
+          echo "Building image $IMAGE"
+          docker build -t $IMAGE -f ./Dockerfile .
+          docker push $IMAGE
